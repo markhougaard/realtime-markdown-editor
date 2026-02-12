@@ -1,0 +1,88 @@
+{$DOMAIN:localhost} {
+	# Rate limiting
+	# Global: 100 requests/sec per IP (prevents basic DoS)
+	rate_limit 100 {
+		key "{http.request.remote.host}"
+		window 1s
+		events 100
+		status 429
+	}
+
+	# Stricter rate limit on upload endpoint: 10 requests/min per IP
+	@upload {
+		path /api/upload
+		method POST
+	}
+	rate_limit @upload 10 {
+		key "{http.request.remote.host}"
+		window 1m
+		events 10
+		status 429
+	}
+
+	# Request size limits (prevent huge uploads)
+	request_body {
+		max_size 50MB
+	}
+
+	# Reverse proxy to Node.js app
+	reverse_proxy app:3000 {
+		# WebSocket support
+		header_up Connection "upgrade"
+		header_up Upgrade "websocket"
+
+		# Forward headers
+		header_up X-Real-IP {http.request.remote.host}
+		header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
+		header_up X-Forwarded-Proto {http.request.proto}
+		header_up X-Forwarded-Host {http.request.header.Host}
+
+		# Timeouts for WebSocket
+		transport http {
+			idle_timeout 60s
+			max_idle_connections 100
+		}
+	}
+
+	# Security headers
+	header / {
+		# HSTS: Strict-Transport-Security (1 year, include subdomains, preload)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+		# Content Security Policy: Prevent XSS and injection attacks
+		# Only allow same-origin scripts and styles, no eval
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'self'"
+
+		# Permissions Policy: Disable unnecessary browser features
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()"
+
+		# Prevent MIME type sniffing
+		X-Content-Type-Options "nosniff"
+
+		# Prevent clickjacking (SAMEORIGIN is correct for collaborative editor)
+		X-Frame-Options "SAMEORIGIN"
+
+		# Enable XSS filter in older browsers
+		X-XSS-Protection "1; mode=block"
+
+		# Referrer policy: Only send referrer to same-origin
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# Prevent cross-domain policies
+		X-Permitted-Cross-Domain-Policies "none"
+
+		# Disable DNS prefetch to prevent privacy leaks
+		X-DNS-Prefetch-Control "off"
+
+		# Remove Server header (don't reveal what's running)
+		-Server
+	}
+
+	# Compress responses (except for WebSocket and streams)
+	encode gzip {
+		level 6
+	}
+
+	# Enable HTTP/2 and HTTP/1.1
+	protocols h2 http/1.1
+}

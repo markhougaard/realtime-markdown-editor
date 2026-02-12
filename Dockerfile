@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install build dependencies for native modules (better-sqlite3)
+RUN apk add --no-cache python3 make g++ cairo-dev
+
 # Copy package files
 COPY package*.json ./
 
@@ -11,6 +14,9 @@ RUN npm ci
 
 # Copy source code
 COPY . .
+
+# Rebuild native modules for Alpine/Linux
+RUN npm rebuild better-sqlite3
 
 # Build Next.js app
 RUN npm run build
@@ -26,8 +32,10 @@ RUN apk add --no-cache dumb-init
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production && \
+# Install production dependencies + TypeScript (needed for tsx at runtime)
+# tsx needs TypeScript to transpile .ts files
+RUN npm ci --omit=dev && \
+    npm install --no-save typescript && \
     npm cache clean --force
 
 # Copy built app from builder
@@ -36,6 +44,7 @@ COPY --from=builder /app/public ./public
 COPY server.ts ./
 COPY tsconfig.json ./
 COPY next.config.ts ./
+COPY src ./src
 
 # Create data directory for SQLite with proper permissions
 RUN mkdir -p /app/data && \
@@ -55,5 +64,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start app with memory and CPU constraints
-# NODE_OPTIONS sets garbage collection and memory limits
+# tsx allows running TypeScript files directly
 CMD ["node", "--max-old-space-size=512", "-r", "tsx", "server.ts"]

@@ -2,14 +2,8 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['better-sqlite3'],
-
-  // Security: Limit request body size to prevent DoS attacks
-  // 50MB max for uploads (Caddy enforces 50MB limit too)
-  api: {
-    bodyParser: {
-      sizeLimit: '50MB',
-    },
-  },
+  // Note: Request body size limits are enforced by Caddy reverse proxy (50MB max)
+  // This is sufficient for security since the limit is applied at the network layer
 }
 
 export default nextConfig

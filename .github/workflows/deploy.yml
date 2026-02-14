@@ -108,11 +108,15 @@ jobs:
               exit 1
             fi
 
+            cd /root/markdown-editor
+
+            echo "📥 Pulling latest config..."
+            git pull origin main
+
             echo "📦 Pulling latest Docker image..."
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             echo "🛑 Stopping old containers..."
-            cd /root/markdown-editor
             docker-compose down --remove-orphans || true
 
             echo "🚀 Starting new containers for domain: $DOMAIN"

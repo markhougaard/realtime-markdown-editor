@@ -1,7 +1,11 @@
 {$DOMAIN:localhost} {
 	reverse_proxy app:3000
 
-	header {
+	@nowebsocket {
+		not header Connection *Upgrade*
+	}
+
+	header @nowebsocket {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'self'"
 		X-Content-Type-Options "nosniff"
@@ -10,5 +14,5 @@
 		-Server
 	}
 
-	encode gzip
+	encode @nowebsocket gzip
 }

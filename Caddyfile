@@ -1,25 +1,4 @@
 {$DOMAIN:localhost} {
-	# Rate limiting
-	# Global: 100 requests/sec per IP (prevents basic DoS)
-	rate_limit 100 {
-		key "{http.request.remote.host}"
-		window 1s
-		events 100
-		status 429
-	}
-
-	# Stricter rate limit on upload endpoint: 10 requests/min per IP
-	@upload {
-		path /api/upload
-		method POST
-	}
-	rate_limit @upload 10 {
-		key "{http.request.remote.host}"
-		window 1m
-		events 10
-		status 429
-	}
-
 	# Request size limits (prevent huge uploads)
 	request_body {
 		max_size 50MB

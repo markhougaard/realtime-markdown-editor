@@ -2,9 +2,15 @@ import { createServer } from 'http'
 import { parse } from 'url'
 import next from 'next'
 import { WebSocketServer } from 'ws'
-import * as Y from 'yjs'
+import type * as YTypes from 'yjs'
 import { setupWSConnection, setPersistence } from 'y-websocket/bin/utils'
 import { store } from './src/lib/db'
+
+// Use CJS require for yjs to get the same instance as y-websocket/bin/utils.cjs.
+// ESM import resolves to yjs.mjs while require resolves to yjs.cjs — loading both
+// causes "Yjs was already imported" and breaks instanceof checks / sync.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Y: typeof YTypes = require('yjs')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || 'localhost'
@@ -17,13 +23,13 @@ async function main() {
   await app.prepare()
 
   setPersistence({
-    bindState: async (docName: string, ydoc: Y.Doc) => {
+    bindState: async (docName: string, ydoc: YTypes.Doc) => {
       const doc = store.getDocument(docName)
       if (doc?.content) {
         Y.applyUpdate(ydoc, new Uint8Array(doc.content))
       }
     },
-    writeState: async (docName: string, ydoc: Y.Doc) => {
+    writeState: async (docName: string, ydoc: YTypes.Doc) => {
       const update = Y.encodeStateAsUpdate(ydoc)
       store.saveDocument(docName, Buffer.from(update))
     },

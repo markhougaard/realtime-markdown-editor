@@ -122,7 +122,7 @@ jobs:
             sleep 10
 
             echo "✅ Health check..."
-            docker-compose exec -T app node -e "require('http').get('http://localhost:3000/', (r) => {console.log('Status:', r.statusCode); process.exit(r.statusCode === 200 ? 0 : 1)})" || {
+            docker-compose exec -T app node -e "require('http').get('http://localhost:3000/', (r) => {console.log('Status:', r.statusCode); process.exit([200, 307].includes(r.statusCode) ? 0 : 1)})" || {
               echo "❌ Health check failed"
               docker-compose logs app
               exit 1

@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Package Manager
+
+This project uses yarn. Do NOT switch to npm or any other package manager unless explicitly asked.
+
 ## Project Overview
 
 A real-time collaborative Markdown editor. Users create or upload `.md` files and get a shareable URL. Anyone with the URL can edit the document simultaneously with live sync. Think "Google Docs for Markdown" — minimal, ephemeral-feeling, no auth.
@@ -68,6 +72,21 @@ SQLite stores documents in a single table:
 - **Single-process deployment.** One `npm start` runs everything.
 - **GFM / CommonMark.** Markdown rendering matches GitHub's spec and visual style.
 - **GitHub Gist styling.** The rendered preview should look exactly like a GitHub Gist (font sizes, spacing, code block styling, etc.). Use Inter as the base typeface.
+
+## Deployment
+
+- When writing Caddyfile configs, only use directives confirmed in the target Caddy version's docs. Do NOT guess at directives like `rate_limit`, `idle_timeout`, or `encode level`.
+- When deploying, verify port configuration, health check endpoints, and networking (IPv4 vs IPv6) before declaring success.
+
+## Testing
+
+- Keep Playwright integration tests and Vitest unit tests in separate directories with distinct configs to prevent cross-contamination.
+- After any schema or model change, remind user to clear stale local data (iOS simulator data, SQLite DBs, etc.) before debugging runtime crashes.
+
+## Communication Style
+
+- Be concise during planning phases. Present plans as bullet-point outlines, not lengthy prose. Ask for approval quickly and move to implementation.
+- Do not over-explain before acting. When the task is clear, start implementing.
 
 ## Conventions
 

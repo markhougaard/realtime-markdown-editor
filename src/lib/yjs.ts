@@ -1,4 +1,10 @@
-import * as Y from 'yjs'
+import type * as YTypes from 'yjs'
+
+// Use CJS require to get the same yjs instance as y-websocket/bin/utils.cjs.
+// ESM import resolves to yjs.mjs, require resolves to yjs.cjs — loading both
+// causes "Yjs was already imported" and breaks instanceof checks / sync.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Y: typeof YTypes = require('yjs')
 
 const TEXT_NAME = 'codemirror'
 

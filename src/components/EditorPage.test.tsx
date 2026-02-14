@@ -11,6 +11,19 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
+// Mock next/dynamic to load the component synchronously in tests
+vi.mock('next/dynamic', () => ({
+  default: (loader: () => Promise<unknown>) => {
+    let Component: React.ComponentType | null = null
+    loader().then((resolved: unknown) => {
+      Component = resolved as React.ComponentType
+    })
+    return function DynamicWrapper(props: Record<string, unknown>) {
+      return Component ? <Component {...props} /> : null
+    }
+  },
+}))
+
 // Mock the Editor and Preview components
 vi.mock('./Editor', () => ({
   Editor: ({ onContentChange }: { onContentChange: (content: string) => void }) => (
@@ -35,9 +48,11 @@ describe('EditorPage', () => {
     vi.clearAllMocks()
   })
 
-  it('renders editor and preview side-by-side', () => {
+  it('renders editor and preview side-by-side', async () => {
     render(<EditorPage id="test-123" />)
-    expect(screen.getByTestId('editor')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId('editor')).toBeInTheDocument()
+    })
     expect(screen.getByTestId('preview')).toBeInTheDocument()
   })
 

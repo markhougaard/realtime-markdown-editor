@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import * as Y from 'yjs'
+import type * as YTypes from 'yjs'
 import { createEmptyYjsDoc, createYjsDocFromText } from './yjs'
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Y: typeof YTypes = require('yjs')
 
 describe('createEmptyYjsDoc', () => {
   it('creates a valid Yjs document buffer', () => {

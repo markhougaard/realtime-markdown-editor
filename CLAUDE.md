@@ -10,7 +10,7 @@ This project uses yarn. Do NOT switch to npm or any other package manager unless
 
 A real-time collaborative Markdown editor. Users create or upload `.md` files and get a shareable URL. Anyone with the URL can edit the document simultaneously with live sync. Think "Google Docs for Markdown" — minimal, ephemeral-feeling, no auth.
 
-**Live at:** `markdown.marks.dk`
+**Live at:** `realtimemarkdown.com`
 
 ## Tech Stack
 

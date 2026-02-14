@@ -40,7 +40,8 @@ RUN npm ci --omit=dev && \
 
 # Copy built app from builder
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+RUN mkdir -p ./public
+COPY --from=builder /app/public/ ./public/
 COPY server.ts ./
 COPY tsconfig.json ./
 COPY next.config.ts ./

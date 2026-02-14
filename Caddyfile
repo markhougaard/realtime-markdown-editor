@@ -51,8 +51,6 @@
 		-Server
 	}
 
-	# Compress responses (except for WebSocket and streams)
-	encode gzip {
-		level 6
-	}
+	# Compress responses
+	encode gzip
 }

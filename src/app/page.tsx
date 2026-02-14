@@ -3,6 +3,8 @@ import { store } from '@/lib/db'
 import { generateId } from '@/lib/id'
 import { createEmptyYjsDoc } from '@/lib/yjs'
 
+export const dynamic = 'force-dynamic'
+
 export default async function HomePage() {
   const id = generateId()
   const content = createEmptyYjsDoc()

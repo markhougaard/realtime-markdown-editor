@@ -67,11 +67,12 @@ fi
 read -p "Enter your email for Let's Encrypt: " EMAIL
 
 echo -e "${BLUE}📝 Creating .env file...${NC}"
-cat > /root/markdown-editor/.env.production << EOF
+cat > /root/markdown-editor/.env << EOF
 NODE_ENV=production
 DATABASE_PATH=/app/data/documents.db
 DOMAIN=${DOMAIN}
 EMAIL=${EMAIL}
+GITHUB_REPOSITORY=${GITHUB_REPO}
 EOF
 
 echo -e "${BLUE}⚙️ Setting up Caddyfile...${NC}"

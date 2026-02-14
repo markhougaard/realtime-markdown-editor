@@ -2,13 +2,8 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
+import { Editor } from './Editor'
 import { Preview } from './Preview'
-
-const Editor = dynamic(
-  () => import('./Editor').then(mod => ({ default: mod.Editor })),
-  { ssr: false }
-)
 
 interface EditorPageProps {
   id: string

@@ -23,6 +23,7 @@ vi.mock('./Editor', () => ({
   ),
 }))
 
+
 vi.mock('./Preview', () => ({
   Preview: ({ content }: { content: string }) => (
     <div data-testid="preview">{content}</div>

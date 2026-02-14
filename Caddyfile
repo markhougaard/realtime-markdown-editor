@@ -1,18 +1,23 @@
 {$DOMAIN:localhost} {
-	reverse_proxy app:3000
-
-	@nowebsocket {
-		not header Connection *Upgrade*
+	@ws {
+		header Connection *Upgrade*
+		header Upgrade websocket
 	}
 
-	header @nowebsocket {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'self'"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "SAMEORIGIN"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		-Server
+	handle @ws {
+		reverse_proxy app:3000
 	}
 
-	encode @nowebsocket gzip
+	handle {
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'self'"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "SAMEORIGIN"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			-Server
+		}
+		encode gzip
+		reverse_proxy app:3000
+	}
 }

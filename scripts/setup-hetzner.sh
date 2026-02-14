@@ -78,6 +78,7 @@ echo -e "${BLUE}⚙️ Setting up Caddyfile...${NC}"
 # Caddyfile is already in the repo, no changes needed
 
 echo -e "${BLUE}🚀 Starting Docker containers...${NC}"
+cd /root/markdown-editor
 DOMAIN=${DOMAIN} docker-compose up -d
 
 echo -e "${BLUE}⏳ Waiting for services to start...${NC}"
@@ -106,7 +107,8 @@ echo "   - DOMAIN: $DOMAIN"
 echo ""
 echo "3. Access your app at: https://$DOMAIN"
 echo ""
-echo -e "${BLUE}Useful commands:${NC}"
+echo -e "${BLUE}Useful commands (run from /root/markdown-editor):${NC}"
+echo "  cd /root/markdown-editor"
 echo "  docker-compose ps          # Check container status"
 echo "  docker-compose logs -f     # View logs"
 echo "  docker-compose down        # Stop containers"

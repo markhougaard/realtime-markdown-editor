@@ -1,5 +1,4 @@
 import { createServer } from 'http'
-import type { Socket } from 'net'
 import { parse } from 'url'
 import next from 'next'
 import { WebSocketServer } from 'ws'
@@ -18,10 +17,6 @@ const dev = process.env.NODE_ENV !== 'production'
 // Always bind to 0.0.0.0 in production so the server is reachable from outside the container.
 const hostname = dev ? 'localhost' : '0.0.0.0'
 const port = parseInt(process.env.PORT || '3000', 10)
-
-function log(msg: string) {
-  console.log(`[ws] ${new Date().toISOString()} ${msg}`)
-}
 
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
@@ -43,50 +38,17 @@ async function main() {
   })
 
   const server = createServer(async (req, res) => {
-    // Don't let Next.js handle WebSocket upgrade requests — they are
-    // handled by the 'upgrade' event below.  If Next.js serves an HTTP
-    // response for the same socket the upgrade is happening on, the
-    // TCP connection gets destroyed and the WebSocket dies with 1006.
-    if (req.headers.upgrade) return
-
     const parsedUrl = parse(req.url!, true)
     await handle(req, res, parsedUrl)
   })
 
-  const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false })
+  const wss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (request, socket, head) => {
     const { pathname } = parse(request.url!)
 
-    // Let Next.js handle its own WebSocket connections (HMR)
+    // Let Next.js handle its own WebSocket connections (HMR in dev)
     if (pathname?.startsWith('/_next')) {
-      return
-    }
-
-    log(`upgrade request: path=${pathname} host=${request.headers.host} origin=${request.headers.origin}`)
-    log(`server timeouts: timeout=${server.timeout} requestTimeout=${server.requestTimeout} headersTimeout=${server.headersTimeout} keepAliveTimeout=${server.keepAliveTimeout}`)
-    log(`upgrade listeners count: ${server.listenerCount('upgrade')}`)
-
-    // Disable any socket-level timeout that the HTTP server may have set
-    ;(socket as Socket).setTimeout(0)
-
-    socket.on('error', (err) => {
-      log(`socket error during upgrade: ${err.message}`)
-    })
-
-    // Simple echo endpoint for debugging WebSocket connectivity
-    if (pathname === '/_ws-echo') {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        log('echo endpoint connected')
-        ws.on('message', (data) => {
-          log(`echo recv: ${Buffer.from(data as ArrayBuffer).length} bytes`)
-          ws.send(data)
-        })
-        ws.on('close', (code, reason) => {
-          log(`echo closed: code=${code} reason=${reason?.toString() || ''}`)
-        })
-        ws.send('hello from server')
-      })
       return
     }
 
@@ -95,33 +57,29 @@ async function main() {
     })
   })
 
+  // Next.js lazily registers its own 'upgrade' listener on the HTTP server
+  // (via req.socket.server) after handling the first request.  When both
+  // listeners fire for a y-websocket upgrade, Next.js's handler corrupts
+  // the already-upgraded socket and the connection dies with close code
+  // 1006.  In production there is no HMR, so we can safely block any
+  // additional 'upgrade' registrations.  In dev mode we leave them alone
+  // because Next.js needs its own listener for HMR WebSocket connections.
+  if (!dev) {
+    const origAddListener = server.addListener.bind(server)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const guardedOn = function (event: string, listener: (...a: any[]) => void) {
+      if (event === 'upgrade') return server
+      return origAddListener(event, listener)
+    }
+    server.on = server.addListener = guardedOn as typeof server.on
+  }
+
   wss.on('connection', (ws, req) => {
-    const { pathname } = parse(req.url!)
-    const docName = pathname?.slice(1) || 'unknown'
-    log(`connection opened: doc=${docName} origin=${req.headers.origin}`)
-
-    ws.on('close', (code, reason) => {
-      log(`connection closed: doc=${docName} code=${code} reason=${reason?.toString() || ''}`)
-    })
-
-    ws.on('error', (err) => {
-      log(`connection error: doc=${docName} error=${err.message}`)
-    })
-
     setupWSConnection(ws, req)
   })
 
-  // Disable HTTP server timeouts to prevent them from interfering with
-  // upgraded WebSocket connections.
-  server.timeout = 0
-  server.requestTimeout = 0
-  server.headersTimeout = 0
-  server.keepAliveTimeout = 0
-
   server.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`)
-    console.log(`> Upgrade listeners: ${server.listenerCount('upgrade')}`)
-    console.log(`> server.timeout=${server.timeout} requestTimeout=${server.requestTimeout} headersTimeout=${server.headersTimeout} keepAliveTimeout=${server.keepAliveTimeout}`)
   })
 }
 

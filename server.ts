@@ -72,8 +72,24 @@ async function main() {
     const docName = pathname?.slice(1) || 'unknown'
     log(`connection opened: doc=${docName} origin=${req.headers.origin}`)
 
+    let msgCount = 0
+    ws.on('message', (data) => {
+      msgCount++
+      const bytes = data instanceof Buffer ? data : Buffer.from(data as ArrayBuffer)
+      log(`msg recv: doc=${docName} #${msgCount} bytes=${bytes.length} first=[${bytes.slice(0, 4).join(',')}]`)
+    })
+
+    const origSend = ws.send.bind(ws)
+    let sendCount = 0
+    ws.send = (data: any, cb?: any) => {
+      sendCount++
+      const bytes = data instanceof Buffer ? data : (data instanceof Uint8Array ? Buffer.from(data) : Buffer.from(String(data)))
+      log(`msg send: doc=${docName} #${sendCount} bytes=${bytes.length} first=[${bytes.slice(0, 4).join(',')}]`)
+      return origSend(data, cb)
+    }
+
     ws.on('close', (code, reason) => {
-      log(`connection closed: doc=${docName} code=${code} reason=${reason?.toString() || ''}`)
+      log(`connection closed: doc=${docName} code=${code} reason=${reason?.toString() || ''} recv=${msgCount} sent=${sendCount}`)
     })
 
     ws.on('error', (err) => {

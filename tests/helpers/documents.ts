@@ -5,8 +5,9 @@ import { Page } from '@playwright/test'
  * Returns the document ID from the redirected URL
  */
 export async function createTestDocument(page: Page): Promise<string> {
-  await page.goto('/')
-  // Homepage redirects to /:id
+  await page.goto('/', { waitUntil: 'networkidle' })
+  // Homepage server-redirects to /:id — wait for the URL to change
+  await page.waitForURL(/\/[a-zA-Z0-9_-]+$/, { timeout: 10000 })
   const url = page.url()
   const match = url.match(/\/([a-zA-Z0-9_-]+)$/)
   if (!match) {
@@ -25,17 +26,25 @@ export async function waitForEditorReady(page: Page): Promise<void> {
 }
 
 /**
- * Get the editor content via JavaScript evaluation
+ * Wait for the Yjs WebSocket provider to sync.
+ * Polls until the cm-editor content line exists (editor is connected and received state).
+ */
+export async function waitForSync(page: Page): Promise<void> {
+  await waitForEditorReady(page)
+  // Give the WebSocket provider a moment to connect and sync
+  // We poll for the content area to have at least one line
+  await page.waitForSelector('.cm-content .cm-line', { timeout: 10000 })
+}
+
+/**
+ * Get the editor content by reading text from CodeMirror's DOM.
+ * Each line is a .cm-line element inside .cm-content.
  */
 export async function getEditorContent(page: Page): Promise<string> {
   await waitForEditorReady(page)
   const content = await page.evaluate(() => {
-    // Access CodeMirror's state through the view
-    const element = document.querySelector('.cm-editor') as any
-    if (!element?.cmView?.state?.doc) {
-      return ''
-    }
-    return element.cmView.state.doc.toString()
+    const lines = document.querySelectorAll('.cm-editor .cm-content .cm-line')
+    return Array.from(lines).map(l => l.textContent || '').join('\n')
   })
   return content
 }
@@ -45,9 +54,8 @@ export async function getEditorContent(page: Page): Promise<string> {
  */
 export async function typeInEditor(page: Page, text: string): Promise<void> {
   await waitForEditorReady(page)
-  const editor = page.locator('.cm-editor').first()
+  const editor = page.locator('.cm-content').first()
   await editor.click()
-  // Type text character by character (CodeMirror handles it via keypress)
   await page.keyboard.type(text, { delay: 10 })
 }
 
@@ -86,13 +94,6 @@ export async function dragDropFile(
   filename: string,
   content: string
 ): Promise<string> {
-  // Create a data transfer object with file
-  const fileData = {
-    name: filename,
-    mimeType: 'text/plain',
-    buffer: Buffer.from(content),
-  }
-
   // Simulate drag and drop
   await page.evaluate(
     async ({ filename: fname, buffer }) => {

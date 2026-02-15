@@ -13,8 +13,14 @@ import { store } from './src/lib/db'
 const Y: typeof YTypes = require('yjs')
 
 const dev = process.env.NODE_ENV !== 'production'
-const hostname = process.env.HOSTNAME || 'localhost'
+// In Docker, process.env.HOSTNAME is the container ID (e.g. "1055511de87e").
+// Always bind to 0.0.0.0 in production so the server is reachable from outside the container.
+const hostname = dev ? 'localhost' : '0.0.0.0'
 const port = parseInt(process.env.PORT || '3000', 10)
+
+function log(msg: string) {
+  console.log(`[ws] ${new Date().toISOString()} ${msg}`)
+}
 
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
@@ -50,12 +56,30 @@ async function main() {
       return
     }
 
+    log(`upgrade request: path=${pathname} host=${request.headers.host} origin=${request.headers.origin}`)
+
+    socket.on('error', (err) => {
+      log(`socket error during upgrade: ${err.message}`)
+    })
+
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request)
     })
   })
 
   wss.on('connection', (ws, req) => {
+    const { pathname } = parse(req.url!)
+    const docName = pathname?.slice(1) || 'unknown'
+    log(`connection opened: doc=${docName} origin=${req.headers.origin}`)
+
+    ws.on('close', (code, reason) => {
+      log(`connection closed: doc=${docName} code=${code} reason=${reason?.toString() || ''}`)
+    })
+
+    ws.on('error', (err) => {
+      log(`connection error: doc=${docName} error=${err.message}`)
+    })
+
     setupWSConnection(ws, req)
   })
 

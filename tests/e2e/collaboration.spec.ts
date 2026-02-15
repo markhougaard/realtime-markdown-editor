@@ -1,107 +1,137 @@
 import { test, expect } from '@playwright/test'
-import { createTestDocument, waitForEditorReady } from '../helpers/documents'
+import {
+  createTestDocument,
+  waitForEditorReady,
+  typeInEditor,
+  getEditorContent,
+} from '../helpers/documents'
 
-test('Collaboration: multiple clients connect to same document', async ({
+test('Collaboration: text typed in window A appears in window B', async ({
   browser,
 }) => {
-  // Create a document in first tab
   const context1 = await browser.newContext()
   const page1 = await context1.newPage()
   const docId = await createTestDocument(page1)
   await waitForEditorReady(page1)
 
-  // Open same document in second tab
   const context2 = await browser.newContext()
   const page2 = await context2.newPage()
   await page2.goto(`/${docId}`)
   await waitForEditorReady(page2)
 
-  // Both should be viewing the same document ID
-  expect(page1.url()).toContain(`/${docId}`)
-  expect(page2.url()).toContain(`/${docId}`)
+  // Type in window A
+  await typeInEditor(page1, 'Hello from window A')
+
+  // Verify it appears in window B
+  await expect
+    .poll(() => getEditorContent(page2), {
+      message: 'Text typed in A should appear in B',
+      timeout: 10000,
+    })
+    .toContain('Hello from window A')
 
   await context1.close()
   await context2.close()
 })
 
-test('Collaboration: both clients can access the editor', async ({
+test('Collaboration: text typed in window B appears in window A', async ({
   browser,
 }) => {
-  // Create a document in first tab
   const context1 = await browser.newContext()
   const page1 = await context1.newPage()
   const docId = await createTestDocument(page1)
   await waitForEditorReady(page1)
 
-  // Open same document in second tab
   const context2 = await browser.newContext()
   const page2 = await context2.newPage()
   await page2.goto(`/${docId}`)
   await waitForEditorReady(page2)
 
-  // Both should have CodeMirror editor visible
-  const editor1 = page1.locator('.cm-editor')
-  const editor2 = page2.locator('.cm-editor')
+  // Type in window B
+  await typeInEditor(page2, 'Hello from window B')
 
-  await expect(editor1).toBeVisible()
-  await expect(editor2).toBeVisible()
+  // Verify it appears in window A
+  await expect
+    .poll(() => getEditorContent(page1), {
+      message: 'Text typed in B should appear in A',
+      timeout: 10000,
+    })
+    .toContain('Hello from window B')
 
   await context1.close()
   await context2.close()
 })
 
-test('Collaboration: preview is available in both clients', async ({
-  browser,
-}) => {
-  // Create a document
+test('Collaboration: bidirectional sync', async ({ browser }) => {
   const context1 = await browser.newContext()
   const page1 = await context1.newPage()
   const docId = await createTestDocument(page1)
   await waitForEditorReady(page1)
 
-  // Open same document in second tab
   const context2 = await browser.newContext()
   const page2 = await context2.newPage()
   await page2.goto(`/${docId}`)
   await waitForEditorReady(page2)
 
-  // Both should have markdown preview visible
-  const preview1 = page1.locator('.markdown-body')
-  const preview2 = page2.locator('.markdown-body')
+  // Type in A first
+  await typeInEditor(page1, 'Line from A')
 
-  await expect(preview1).toBeVisible()
-  await expect(preview2).toBeVisible()
+  // Wait for B to receive it
+  await expect
+    .poll(() => getEditorContent(page2), { timeout: 10000 })
+    .toContain('Line from A')
+
+  // Now type in B (click to move cursor to end)
+  await typeInEditor(page2, '\nLine from B')
+
+  // Verify A sees both lines
+  await expect
+    .poll(() => getEditorContent(page1), {
+      message: 'A should see text from both windows',
+      timeout: 10000,
+    })
+    .toContain('Line from B')
 
   await context1.close()
   await context2.close()
 })
 
-test('Collaboration: document persists when loaded in multiple tabs', async ({
+test('Collaboration: document persists after all clients disconnect', async ({
   browser,
 }) => {
-  // Create a document
+  // Create doc and type text
   const context1 = await browser.newContext()
   const page1 = await context1.newPage()
   const docId = await createTestDocument(page1)
   await waitForEditorReady(page1)
 
-  // Open same document in second tab
+  await typeInEditor(page1, 'Persisted text')
+
+  // Wait for text to be in the editor (confirms typing worked)
+  await expect
+    .poll(() => getEditorContent(page1), { timeout: 5000 })
+    .toContain('Persisted text')
+
+  // Give the server a moment to persist the Yjs state
+  await page1.waitForTimeout(1000)
+
+  // Close the client
+  await context1.close()
+
+  // Reopen in a fresh context
   const context2 = await browser.newContext()
   const page2 = await context2.newPage()
   await page2.goto(`/${docId}`)
   await waitForEditorReady(page2)
 
-  // Both should have the same document ID
-  const url1 = page1.url()
-  const url2 = page2.url()
+  // Content should still be there
+  await expect
+    .poll(() => getEditorContent(page2), {
+      message: 'Document content should persist after reconnect',
+      timeout: 10000,
+    })
+    .toContain('Persisted text')
 
-  const id1 = url1.split('/').pop()
-  const id2 = url2.split('/').pop()
-
-  expect(id1).toBe(id2)
-  expect(id1).not.toBeUndefined()
-
-  await context1.close()
   await context2.close()
 })
 
@@ -109,29 +139,45 @@ test('Collaboration: document survives page reload', async ({ page }) => {
   const docId = await createTestDocument(page)
   await waitForEditorReady(page)
 
-  const originalUrl = page.url()
+  await typeInEditor(page, 'Before reload')
 
-  // Reload the page
+  await expect
+    .poll(() => getEditorContent(page), { timeout: 5000 })
+    .toContain('Before reload')
+
+  // Give server time to persist
+  await page.waitForTimeout(1000)
+
   await page.reload()
   await waitForEditorReady(page)
 
-  // Should still be on the same document
-  expect(page.url()).toBe(originalUrl)
+  await expect
+    .poll(() => getEditorContent(page), {
+      message: 'Content should survive page reload',
+      timeout: 10000,
+    })
+    .toContain('Before reload')
 })
 
-test('Collaboration: document ID persists in URL across navigation', async ({
-  page,
+test('Collaboration: both clients see the editor and preview', async ({
+  browser,
 }) => {
-  const docId = await createTestDocument(page)
-  await waitForEditorReady(page)
+  const context1 = await browser.newContext()
+  const page1 = await context1.newPage()
+  const docId = await createTestDocument(page1)
+  await waitForEditorReady(page1)
 
-  // Get the current URL
-  const urlBefore = page.url()
+  const context2 = await browser.newContext()
+  const page2 = await context2.newPage()
+  await page2.goto(`/${docId}`)
+  await waitForEditorReady(page2)
 
-  // Wait a bit
-  await page.waitForTimeout(1000)
+  // Both should have editor and preview
+  await expect(page1.locator('.cm-editor')).toBeVisible()
+  await expect(page2.locator('.cm-editor')).toBeVisible()
+  await expect(page1.locator('.markdown-body')).toBeVisible()
+  await expect(page2.locator('.markdown-body')).toBeVisible()
 
-  // URL should not have changed
-  const urlAfter = page.url()
-  expect(urlAfter).toBe(urlBefore)
+  await context1.close()
+  await context2.close()
 })

@@ -52,7 +52,7 @@ async function main() {
     await handle(req, res, parsedUrl)
   })
 
-  const wss = new WebSocketServer({ noServer: true })
+  const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false })
 
   server.on('upgrade', (request, socket, head) => {
     const { pathname } = parse(request.url!)
@@ -67,6 +67,22 @@ async function main() {
     socket.on('error', (err) => {
       log(`socket error during upgrade: ${err.message}`)
     })
+
+    // Simple echo endpoint for debugging WebSocket connectivity
+    if (pathname === '/_ws-echo') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        log('echo endpoint connected')
+        ws.on('message', (data) => {
+          log(`echo recv: ${Buffer.from(data as ArrayBuffer).length} bytes`)
+          ws.send(data)
+        })
+        ws.on('close', (code, reason) => {
+          log(`echo closed: code=${code} reason=${reason?.toString() || ''}`)
+        })
+        ws.send('hello from server')
+      })
+      return
+    }
 
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request)

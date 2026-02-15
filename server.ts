@@ -1,4 +1,5 @@
 import { createServer } from 'http'
+import type { Socket } from 'net'
 import { parse } from 'url'
 import next from 'next'
 import { WebSocketServer } from 'ws'
@@ -67,7 +68,7 @@ async function main() {
     log(`upgrade listeners count: ${server.listenerCount('upgrade')}`)
 
     // Disable any socket-level timeout that the HTTP server may have set
-    socket.setTimeout(0)
+    ;(socket as Socket).setTimeout(0)
 
     socket.on('error', (err) => {
       log(`socket error during upgrade: ${err.message}`)

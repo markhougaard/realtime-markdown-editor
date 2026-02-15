@@ -63,6 +63,11 @@ async function main() {
     }
 
     log(`upgrade request: path=${pathname} host=${request.headers.host} origin=${request.headers.origin}`)
+    log(`server timeouts: timeout=${server.timeout} requestTimeout=${server.requestTimeout} headersTimeout=${server.headersTimeout} keepAliveTimeout=${server.keepAliveTimeout}`)
+    log(`upgrade listeners count: ${server.listenerCount('upgrade')}`)
+
+    // Disable any socket-level timeout that the HTTP server may have set
+    socket.setTimeout(0)
 
     socket.on('error', (err) => {
       log(`socket error during upgrade: ${err.message}`)
@@ -105,8 +110,17 @@ async function main() {
     setupWSConnection(ws, req)
   })
 
+  // Disable HTTP server timeouts to prevent them from interfering with
+  // upgraded WebSocket connections.
+  server.timeout = 0
+  server.requestTimeout = 0
+  server.headersTimeout = 0
+  server.keepAliveTimeout = 0
+
   server.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`)
+    console.log(`> Upgrade listeners: ${server.listenerCount('upgrade')}`)
+    console.log(`> server.timeout=${server.timeout} requestTimeout=${server.requestTimeout} headersTimeout=${server.headersTimeout} keepAliveTimeout=${server.keepAliveTimeout}`)
   })
 }
 

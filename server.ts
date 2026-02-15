@@ -70,17 +70,31 @@ async function main() {
   wss.on('connection', (ws, req) => {
     const { pathname } = parse(req.url!)
     const docName = pathname?.slice(1) || 'unknown'
-    log(`connection opened: doc=${docName} origin=${req.headers.origin}`)
+    log(`connection opened: doc=${docName} readyState=${ws.readyState}`)
 
     ws.on('close', (code, reason) => {
       log(`connection closed: doc=${docName} code=${code} reason=${reason?.toString() || ''}`)
+      log(`close stack: ${new Error().stack}`)
     })
 
     ws.on('error', (err) => {
       log(`connection error: doc=${docName} error=${err.message}`)
     })
 
+    // Monitor the underlying socket for errors
+    const socket = (ws as any)._socket
+    if (socket) {
+      socket.on('error', (err: any) => {
+        log(`underlying socket error: doc=${docName} error=${err.message}`)
+      })
+      socket.on('close', () => {
+        log(`underlying socket closed: doc=${docName}`)
+      })
+    }
+
+    log(`before setupWSConnection: doc=${docName} readyState=${ws.readyState}`)
     setupWSConnection(ws, req)
+    log(`after setupWSConnection: doc=${docName} readyState=${ws.readyState}`)
   })
 
   server.listen(port, () => {

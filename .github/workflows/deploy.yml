@@ -118,6 +118,7 @@ jobs:
 
             echo "🛑 Stopping old containers..."
             docker-compose down --remove-orphans || true
+            docker rm -f markdown-app || true
 
             echo "🚀 Starting new containers for domain: $DOMAIN"
             docker-compose up -d

@@ -1,28 +1,25 @@
-version: '3.8'
-
 services:
   app:
-    image: ghcr.io/${GITHUB_REPOSITORY}:latest
-    container_name: markdown-editor
+    image: ghcr.io/markhougaard/realtime-markdown-editor:latest
+    container_name: markdown-app
     restart: always
     expose:
-      - 3000
+      - "3000"
     environment:
       NODE_ENV: production
       DATABASE_PATH: /app/data/documents.db
     volumes:
       - markdown_data:/app/data
     networks:
-      - markdown_network
-    # Resource limits prevent memory exhaustion and CPU hogging
+      - web
     deploy:
       resources:
         limits:
-          cpus: '1'           # Max 1 CPU core
-          memory: 1G          # Max 1GB RAM
+          cpus: '1'
+          memory: 1G
         reservations:
-          cpus: '0.5'         # Reserved 0.5 CPU cores
-          memory: 512M        # Reserved 512MB RAM
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => {if (![200, 307].includes(r.statusCode)) throw new Error(r.statusCode)})"]
       interval: 30s
@@ -30,42 +27,10 @@ services:
       retries: 3
       start_period: 10s
 
-  caddy:
-    image: caddy:2-alpine
-    container_name: markdown-caddy
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    environment:
-      DOMAIN: ${DOMAIN:-your-domain.here}
-    networks:
-      - markdown_network
-    # Resource limits for reverse proxy and SSL termination
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'         # Max 0.5 CPU core
-          memory: 256M        # Max 256MB RAM
-        reservations:
-          cpus: '0.25'        # Reserved 0.25 CPU cores
-          memory: 128M        # Reserved 128MB RAM
-    depends_on:
-      - app
-
 volumes:
   markdown_data:
     driver: local
-  caddy_data:
-    driver: local
-  caddy_config:
-    driver: local
 
 networks:
-  markdown_network:
-    driver: bridge
+  web:
+    external: true

@@ -38,7 +38,8 @@ jobs:
 
   build:
     name: Build and Push Docker Image
-    runs-on: ubuntu-latest
+    # The server (Hetzner, /opt/multisite) is arm64, so build natively on an arm64 runner.
+    runs-on: ubuntu-24.04-arm
     needs: test
     timeout-minutes: 30
     permissions:
@@ -74,6 +75,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -91,52 +93,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deploy to server
+        # The key in HETZNER_SSH_KEY is restricted on the server to
+        # deploy/server-deploy.sh (authorized_keys command=…,restrict), so the
+        # script below is ignored: the server always runs its own deploy script.
         uses: appleboy/ssh-action@v1.0.0
-        env:
-          DOMAIN: ${{ secrets.DOMAIN }}
         with:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          passphrase: ${{ secrets.HETZNER_SSH_PASSPHRASE }}
-          envs: DOMAIN
-          script: |
-            set -e
-
-            if [ -z "$DOMAIN" ]; then
-              echo "❌ Error: DOMAIN secret not set"
-              exit 1
-            fi
-
-            cd /root/markdown-editor
-
-            echo "📥 Pulling latest config..."
-            git pull origin main
-
-            echo "📦 Pulling latest Docker image..."
-            docker pull ghcr.io/markhougaard/realtime-markdown-editor:latest
-
-            echo "🛑 Stopping old containers..."
-            docker-compose down --remove-orphans || true
-            docker rm -f markdown-app || true
-
-            echo "🚀 Starting new containers for domain: $DOMAIN"
-            docker-compose up -d
-
-            echo "⏳ Waiting for app to be healthy..."
-            sleep 10
-
-            echo "✅ Health check..."
-            docker-compose exec -T app node -e "require('http').get('http://localhost:3000/', (r) => {console.log('Status:', r.statusCode); process.exit([200, 307].includes(r.statusCode) ? 0 : 1)})" || {
-              echo "❌ Health check failed"
-              docker-compose logs app
-              exit 1
-            }
-
-            echo "🎉 Deployment successful!"
-            echo "📊 Container status:"
-            docker-compose ps
-            echo "🌐 Application will be available at: https://$DOMAIN"
+          script: deploy
 
       - name: Deployment status
         if: always()

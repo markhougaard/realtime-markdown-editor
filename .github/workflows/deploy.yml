@@ -110,7 +110,7 @@ jobs:
         run: |
           STATUS="${{ job.status }}"
           if [ "$STATUS" = "success" ]; then
-            echo "✅ Deployment to https://${{ secrets.DOMAIN }} successful"
+            echo "✅ Deployment to https://realtimemarkdown.com successful"
           else
             echo "❌ Deployment failed"
             exit 1

@@ -1,6 +1,9 @@
+# Deployed by the server's deploy runner: docker compose -p markdown, with
+# DEPLOY_TAG set to the commit's 12-character sha. Built on the server (arm64).
 services:
   app:
-    image: ghcr.io/markhougaard/realtime-markdown-editor:latest
+    build: .
+    image: markdown-app:${DEPLOY_TAG:?set by the deploy runner}
     container_name: markdown-app
     restart: always
     expose:
@@ -9,7 +12,7 @@ services:
       NODE_ENV: production
       DATABASE_PATH: /app/data/documents.db
     volumes:
-      - markdown_data:/app/data
+      - markdown_data:/app/data   # project "markdown" → volume markdown_markdown_data (live documents)
     networks:
       - web
     deploy:

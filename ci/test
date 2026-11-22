@@ -1,0 +1,8 @@
+#!/bin/sh
+# Run by the server's deploy runner before every build, inside TEST_IMAGE
+# (see deploy.env), as the deploy user with HOME=/tmp and CI=1.
+# Exit 0 = pass. The Playwright image already has Chromium.
+set -eu
+npm ci --no-audit --no-fund
+npm run test -- src/
+DATABASE_PATH=:memory: npm run test:integration -- --reporter=list

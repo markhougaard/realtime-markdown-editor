@@ -7,6 +7,8 @@ run a Docker image and put a TLS reverse proxy in front of it can host it.
 ## Running it with Docker
 
 ```bash
+docker network create web                 # once
+docker volume create markdown_markdown_data   # once
 DEPLOY_TAG=local docker compose -p markdown up -d --build
 ```
 
@@ -20,14 +22,13 @@ and any value works by hand.
 | `DATABASE_PATH` | `./data/documents.db` | `compose.yml` sets `/app/data/documents.db` |
 | `NODE_ENV` | | `production` in `compose.yml` |
 
-- **Data:** the named volume `markdown_data` holds the database (with `-p markdown` it is
-  `markdown_markdown_data`). Keep the project name the same across deploys, or a new,
-  empty volume is created.
+- **Data:** the external volume `markdown_markdown_data` holds the database. Create it
+  once before the first start (`docker volume create markdown_markdown_data`); compose
+  refuses to start without it rather than quietly creating an empty one.
 - **Health:** `GET /api/health` returns 200 and touches no data. The compose healthcheck
   uses it.
 - **Network:** `compose.yml` joins an external Docker network called `web` and publishes no
-  port; the reverse proxy on that network reaches it as `markdown-app:3000`. Create the
-  network first (`docker network create web`) or adapt the file.
+  port; the reverse proxy on that network reaches it as `markdown-app:3000`.
 - **Architecture:** the image builds natively on amd64 and arm64. Build it on the machine
   that runs it, or for its platform.
 

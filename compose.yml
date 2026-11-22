@@ -31,8 +31,12 @@ services:
       start_period: 10s
 
 volumes:
+  # The documents DB. External, so compose never creates an empty one under a
+  # new name (e.g. after a project rename): it fails instead. Create it once:
+  #   docker volume create markdown_markdown_data
   markdown_data:
-    driver: local
+    external: true
+    name: markdown_markdown_data
 
 networks:
   web:

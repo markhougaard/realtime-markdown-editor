@@ -133,7 +133,7 @@ X-Content-Type-Options: nosniff
 
 ---
 
-## 5. Container Resource Limits (docker-compose.yml) ✅
+## 5. Container Resource Limits (compose.yml) ✅
 
 ### Application Container
 ```yaml
@@ -152,7 +152,7 @@ memory: 256M        # Max 256MB RAM
 - **Reserved:** 0.25 CPU + 128MB RAM
 - Lightweight reverse proxy configuration
 
-**Location:** `docker-compose.yml` lines 16-26 and 46-56
+**Location:** `compose.yml`, `deploy.resources`
 
 ---
 
@@ -244,7 +244,7 @@ Before going live:
 ### Modified
 - `Caddyfile` — Rate limiting, request size limits, enhanced security headers
 - `next.config.ts` — API body size limits
-- `docker-compose.yml` — Resource limits for containers
+- `compose.yml` — Resource limits for containers
 - `Dockerfile` — Non-root user, memory limits, TypeScript config
 - `src/app/api/upload/route.ts` — Input complexity validation
 

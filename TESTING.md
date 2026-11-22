@@ -123,24 +123,21 @@ npm run test:all               # Run all tests to ensure nothing broke
 npm run build                  # Verify production build works
 ```
 
-## GitHub Actions CI Pipeline
+## Automated test runs
 
-The project has automated testing in GitHub Actions. Every push and pull request runs:
+Tests run in two places:
 
-1. **Unit tests** (Vitest)
-2. **Integration tests** (Playwright with in-memory database)
+1. **Before every deploy, on the server.** `ci/test` runs in the Playwright image named in
+   `deploy.env` (`TEST_IMAGE`): `npm ci`, the unit tests (`npm run test -- src/`), then the
+   Playwright integration tests against an in-memory database. A failure stops the deploy
+   and leaves the live version untouched. The image tag must match the `@playwright/test`
+   version in `package-lock.json`, since it supplies the browsers.
+2. **On GitHub**, `.github/workflows/test.yml`, for pushes to `main` and `feature/*` and for
+   pull requests: `unit-tests` (Vitest) and `integration-tests` (Playwright, pinned to
+   `ubuntu-24.04` because this Playwright version can't install Chromium on newer runners).
+   It only reports: deploys don't depend on it.
 
-### Pipeline Configuration
-
-File: `.github/workflows/test.yml`
-
-- Runs on: `main` branch and all `feature/*` branches
-- Triggers: Push and Pull Request events
-- Jobs:
-  - `unit-tests` — Runs Vitest (fast, ~1 minute)
-  - `integration-tests` — Runs Playwright with browser (~5 minutes)
-
-### Viewing Results
+### Viewing Results on GitHub
 
 1. Go to your PR on GitHub
 2. Scroll to "Checks" section

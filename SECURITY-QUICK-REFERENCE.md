@@ -122,7 +122,7 @@ curl -I https://your-domain.here | grep -E "Strict-Transport|CSP|X-"
 
 ### Daily
 - [ ] `docker stats` - Check memory/CPU usage
-- [ ] `docker logs markdown-caddy | grep 429` - Monitor rate limit hits
+- [ ] `docker logs caddy-gateway | grep 429` - Monitor rate limit hits
 
 ### Weekly
 - [ ] Check for validation errors in logs
@@ -146,7 +146,7 @@ curl -I https://your-domain.here | grep -E "Strict-Transport|CSP|X-"
 ### Rate Limit Hit (HTTP 429)
 ```bash
 # Attacker hitting rate limit? Check logs:
-docker logs -f markdown-caddy | grep 429
+docker logs -f caddy-gateway | grep 429
 
 # If legitimate user: Increase limit in Caddyfile
 # If attacker: Add to firewall blocklist (Hetzner Cloud)
@@ -155,7 +155,7 @@ docker logs -f markdown-caddy | grep 429
 ### Upload Rejected (HTTP 400)
 ```bash
 # Check what failed:
-docker logs -f markdown-editor | grep "Content exceeds\|nesting\|repeated"
+docker logs -f markdown-app | grep "Content exceeds\|nesting\|repeated"
 
 # Common causes:
 # 1. File > 10MB - User needs smaller file
@@ -165,16 +165,16 @@ docker logs -f markdown-editor | grep "Content exceeds\|nesting\|repeated"
 ### Container Out of Memory (OOM)
 ```bash
 # Check if container was killed:
-docker inspect markdown-editor | grep OOMKilled
+docker inspect markdown-app --format '{{.State.OOMKilled}}'
 
-# If yes: Increase memory limit in docker-compose.yml
-# Then: docker-compose restart
+# If yes: raise the memory limit in compose.yml (deploy.resources), then commit and push:
+# the deploy recreates the container with the new limit
 ```
 
 ### SSL Certificate Failing
 ```bash
 # Check Caddy logs:
-docker logs markdown-caddy | grep certificate
+docker logs caddy-gateway | grep certificate
 
 # Common cause: Domain DNS not pointing to server
 # Fix: Update DNS record to server IP
@@ -187,7 +187,7 @@ docker logs markdown-caddy | grep certificate
 | File | Purpose | Critical? |
 |------|---------|-----------|
 | `Caddyfile` | Rate limits, headers, SSL | ⭐⭐⭐ |
-| `docker-compose.yml` | Resource limits, environment | ⭐⭐⭐ |
+| `compose.yml` | Resource limits, environment | ⭐⭐⭐ |
 | `Dockerfile` | Non-root user, memory limits | ⭐⭐ |
 | `next.config.ts` | API body size | ⭐ |
 | `src/app/api/upload/route.ts` | Input validation | ⭐⭐⭐ |
@@ -201,7 +201,7 @@ docker logs markdown-caddy | grep certificate
 curl -i https://your-domain.here -H "X-Forwarded-For: 1.2.3.4"
 
 # View current container stats
-docker stats --no-stream markdown-editor markdown-caddy
+docker stats --no-stream markdown-app caddy-gateway
 
 # Check security headers
 curl -I https://your-domain.here | grep -i "security\|strict\|csp"
@@ -212,13 +212,10 @@ curl -X POST https://your-domain.here/api/upload \
   -d '{"content":"test content"}'
 
 # View Caddy logs for errors
-docker logs --tail 50 markdown-caddy
-
-# Verify Caddyfile syntax
-docker exec markdown-caddy caddy validate --config /etc/caddy/Caddyfile
+docker logs --tail 50 caddy-gateway
 
 # Check database integrity
-docker-compose exec app sqlite3 /app/data/documents.db "PRAGMA integrity_check;"
+docker exec markdown-app node -e "const D=require('better-sqlite3');console.log(new D('/app/data/documents.db',{readonly:true}).pragma('integrity_check',{simple:true}))"   # prints ok
 ```
 
 ---

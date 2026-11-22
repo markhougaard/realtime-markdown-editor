@@ -394,37 +394,37 @@ Hetzner provides:
 
 ```bash
 # Check rate limit effectiveness
-docker logs markdown-caddy | grep "429"
+docker logs caddy-gateway | grep "429"
 
 # Monitor container resource usage
-docker stats markdown-editor
+docker stats markdown-app
 
 # Check for OOM kills
-docker inspect markdown-editor | grep -i memory
+docker inspect markdown-app | grep -i memory
 ```
 
 ### Log Monitoring
 
 ```bash
 # View Caddy access logs
-docker logs -f markdown-caddy
+docker logs -f caddy-gateway
 
 # View app errors
-docker logs -f markdown-editor
+docker logs -f markdown-app
 
 # Check for suspicious patterns
-docker logs markdown-caddy | grep "429"  # Rate limit hits
-docker logs markdown-editor | grep "error"  # App errors
+docker logs caddy-gateway | grep "429"  # Rate limit hits
+docker logs markdown-app | grep "error"  # App errors
 ```
 
 ### Database Maintenance
 
 ```bash
-# Backup database
-docker-compose exec app cp /app/data/documents.db /app/data/documents.db.backup
+# Backup database: use SQLite's online backup (see DEPLOYMENT.md, "Backups").
+# A plain cp of a WAL-mode database while the app runs can be inconsistent.
 
-# Verify database integrity
-docker-compose exec app sqlite3 /app/data/documents.db "PRAGMA integrity_check;"
+# Verify database integrity (the image has no sqlite3 CLI)
+docker exec markdown-app node -e "const D=require('better-sqlite3');console.log(new D('/app/data/documents.db',{readonly:true}).pragma('integrity_check',{simple:true}))"   # prints ok
 ```
 
 ---
